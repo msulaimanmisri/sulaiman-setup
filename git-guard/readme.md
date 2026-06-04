@@ -147,6 +147,9 @@ git pull origin staging
 
 If the current branch is `staging` and the allowed branch is also `staging`, the command proceeds normally.
 
+Image of normal pull output:
+<img src="image-1.png" alt="Normal pull output" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;" />
+
 ### Blocked command
 
 ```bash
@@ -163,6 +166,9 @@ Example blocked output:
 If you confirm to fetch/pull this branch, please run:
 git pull origin release --confirm
 ```
+
+Image of blocked pull output:
+<img src="image.png" alt="Blocked command example" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;" />
 
 ### Override intentionally
 
