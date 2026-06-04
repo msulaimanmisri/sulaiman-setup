@@ -1,8 +1,26 @@
-# git-guard
+# Git-guard
 
 A lightweight Git safety guard for deployment workflows that blocks unsafe `git pull` commands before they happen.
 
 This project was designed for a branch-controlled deployment flow where code is reviewed and merged into `staging`, then pulled manually on a staging server through the terminal. Git itself allows `git pull <remote> <branch>` to fetch and then integrate the specified branch into the current branch, which means a mistyped pull such as `git pull origin release` while sitting on `staging` can bring in the wrong code. The purpose of `git-guard` is to reduce that operational mistake by intercepting `git pull` and validating the target branch before Git executes.
+
+## Navigation
+
+- [SUPER IMPORTANT NOTICE!](#super-important)
+- [Author](#author)
+- [Problem it solves](#problem-it-solves)
+- [How it works](#how-it-works)
+- [Recommended use case](#recommended-use-case)
+- [Project structure](#project-structure)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [How to verify setup](#how-to-verify-setup)
+- [Troubleshooting](#troubleshooting)
+- [Design notes](#design-notes)
+- [Revert or uninstall](#revert-or-uninstall)
+- [Future improvements](#future-improvements)
 
 ## SUPER IMPORTANT!
 This tool is best use in the server where only one branch is allowed to be pulled, such as `staging` on staging server, `release` on release server, and `production` on production server. It is not designed for local development machines where multiple branches are frequently pulled and switched between. Using it in a local environment may lead to frustration due to the extra confirmation steps when pulling different branches.
@@ -53,11 +71,12 @@ This is exactly the step where `git-guard` helps by blocking accidental pulls fr
 
 ## Project structure
 
-A simple local setup can look like this:
-
 ```text
-~/.git-guard/
-└── git-pull-guard.mjs
+git-guard/
+├── bashrc.env              # Shell wrapper config for Ubuntu / Linux servers
+├── zshrc.env               # Shell wrapper config for macOS
+├── git-pull-guard.mjs      # The guard script (Node.js)
+└── readme.md
 ```
 
 On macOS, the shell wrapper normally belongs in `~/.zshrc` because zsh is the default shell on modern macOS versions. On Ubuntu or most LAMP/LEMP servers, the wrapper normally belongs in `~/.bashrc`, which is the interactive Bash startup file.
@@ -70,8 +89,6 @@ The Node-based version of this guard requires:
 - Node.js
 - A shell that supports shell functions, such as zsh or bash.
 
-A previous zx-based approach was explored because zx is designed for writing shell-like scripts in JavaScript and can be invoked either as a `zx` executable or through CLI usage patterns documented by the project. In practice, for this specific guard use case, a plain Node script is simpler and more predictable because it avoids runtime ambiguity between shell execution, shebang mode, and CLI mode.
-
 ## Installation
 
 ### 1. Create the guard directory
@@ -82,144 +99,37 @@ mkdir -p ~/.git-guard
 
 ### 2. Create the guard script
 
-Create the file:
+Copy `git-pull-guard.mjs` from this repository into `~/.git-guard/git-pull-guard.mjs`. Open the file if you want to review or modify the code before copying:
 
 ```bash
-nano ~/.git-guard/git-pull-guard.mjs
-```
-
-Paste this code:
-
-```javascript
-import { execSync, spawnSync } from 'node:child_process'
-
-const args = process.argv.slice(2)
-const confirm = args.includes('--confirm')
-const cleanArgs = args.filter(arg => arg !== '--confirm')
-
-const [remote = 'origin', targetBranch = 'staging', ...rest] = cleanArgs
-const allowedBranch = process.env.GIT_GUARD_ALLOWED_BRANCH || 'staging'
-
-function run(command) {
-  return execSync(command, { encoding: 'utf8' }).trim()
-}
-
-function fail(message) {
-  console.error(message)
-  process.exit(1)
-}
-
-function getCurrentBranch() {
-  try {
-    const branch = run('git branch --show-current')
-    if (branch) return branch
-  } catch {}
-
-  try {
-    const branch = run('git rev-parse --abbrev-ref HEAD')
-    if (branch) return branch
-  } catch {}
-
-  return ''
-}
-
-function buildConfirmCommand() {
-  const extra = rest.length ? ` ${rest.join(' ')}` : ''
-  return `git pull ${remote} ${targetBranch}${extra} --confirm`
-}
-
-const currentBranch = getCurrentBranch()
-
-if (!currentBranch || currentBranch === 'HEAD') {
-  fail('[ERROR] Cannot detect current branch. Repository may be in detached HEAD state.')
-}
-
-const violations = []
-
-if (currentBranch !== allowedBranch) {
-  violations.push(
-    `Current branch is '${currentBranch}', but this environment only allows '${allowedBranch}'.`
-  )
-}
-
-if (targetBranch !== allowedBranch) {
-  violations.push(
-    `You are trying to pull '${targetBranch}', but only '${allowedBranch}' is allowed here.`
-  )
-}
-
-if (targetBranch !== currentBranch) {
-  violations.push(
-    `Target branch '${targetBranch}' does not match current branch '${currentBranch}'.`
-  )
-}
-
-if (violations.length > 0 && !confirm) {
-  console.error('\n[BLOCKED] Unsafe git pull detected.\n')
-  violations.forEach((msg, index) => {
-    console.error(`${index + 1}. ${msg}`)
-  })
-
-  console.error(`\nIf you confirm to fetch/pull this branch, please run:\n${buildConfirmCommand()}\n`)
-  process.exit(1)
-}
-
-console.log(`[INFO] Current branch : ${currentBranch}`)
-console.log(`[INFO] Target branch  : ${targetBranch}`)
-console.log(`[INFO] Remote         : ${remote}`)
-console.log(`[INFO] Confirm mode   : ${confirm ? 'YES' : 'NO'}`)
-console.log('')
-
-const result = spawnSync('git', ['pull', remote, targetBranch, ...rest], {
-  stdio: 'inherit',
-})
-
-process.exit(result.status ?? 0)
+open git-pull-guard.mjs
 ```
 
 ### 3. Add the shell wrapper
 
-#### macOS (`~/.zshrc`)
+#### macOS — copy the codes from `zshrc.env` into your `~/.zshrc`
+
+Open `zshrc.env` from this project, copy all the code inside it, and paste it into your `~/.zshrc`:
 
 ```bash
-# Git Guard - By Sulaiman Misri
-export GIT_GUARD_ALLOWED_BRANCH=staging
-
-git() {
-  if [ "$1" = "pull" ]; then
-    shift
-    node ~/.git-guard/git-pull-guard.mjs "$@"
-    return $?
-  fi
-
-  command git "$@"
-}
+open zshrc.env
 ```
 
-Reload the shell:
+After pasting, reload the shell:
 
 ```bash
 exec zsh
 ```
 
-#### Ubuntu / Linux server (`~/.bashrc`)
+#### Ubuntu / Linux server — copy the codes from `bashrc.env` into your `~/.bashrc`
+
+Open `bashrc.env` from this project, copy all the code inside it, and paste it into your `~/.bashrc`:
 
 ```bash
-# Git Guard - By Sulaiman Misri
-export GIT_GUARD_ALLOWED_BRANCH=staging
-
-git() {
-  if [ "$1" = "pull" ]; then
-    shift
-    node ~/.git-guard/git-pull-guard.mjs "$@"
-    return $?
-  fi
-
-  command git "$@"
-}
+open bashrc.env
 ```
 
-Reload the shell:
+After pasting, reload the shell:
 
 ```bash
 source ~/.bashrc
@@ -248,8 +158,7 @@ Example blocked output:
 ```text
 [BLOCKED] Unsafe git pull detected.
 
-1. You are trying to pull 'release', but only 'staging' is allowed here.
-2. Target branch 'release' does not match current branch 'staging'.
+1. You are trying to pull 'release', but only 'staging' is allowed here. Your current branch is 'staging'.
 
 If you confirm to fetch/pull this branch, please run:
 git pull origin release --confirm
@@ -261,7 +170,20 @@ git pull origin release --confirm
 git pull origin release --confirm
 ```
 
-This allows an intentional override while still forcing the user to make that decision explicitly.
+Example override output:
+
+```text
+[WARNING] Bypassing violations via --confirm:
+
+  1. You are trying to pull 'release', but only 'staging' is allowed here. Your current branch is 'staging'.
+
+[INFO] Current branch : staging
+[INFO] Target branch  : release
+[INFO] Remote         : origin
+[INFO] Confirm mode   : YES
+```
+
+This allows an intentional override while logging exactly what was bypassed.
 
 ## Configuration
 
@@ -333,6 +255,41 @@ If the output does not show `git` as a shell function, the wrapper is not loaded
 
 The guard intentionally blocks execution if the repository is in detached HEAD state, because branch safety checks depend on knowing the current branch. Git offers script-friendly branch detection through commands such as `git branch --show-current` and `git rev-parse --abbrev-ref HEAD`, which return meaningful values only when a branch context exists.
 
+### Git not installed or not in PATH
+
+The guard checks whether `git` is available before running. If Git is missing:
+
+```text
+[ERROR] Git is not installed or not in PATH. Git Guard requires Git to function.
+```
+
+Install Git first or add it to your `PATH`.
+
+### Not inside a Git repository
+
+The guard verifies you are inside a Git repository before proceeding. If you run `git pull` outside a repo:
+
+```text
+[ERROR] Not inside a Git repository. Please navigate to a git repository and try again.
+```
+
+Navigate into a Git repository before running the command.
+
+### Unexpected fatal errors
+
+A top-level `try/catch` wraps the entire script to catch anything unexpected. If something goes wrong:
+
+```text
+[FATAL] An unexpected error occurred in Git Guard:
+<error message>
+
+If this error persists, try reinstalling Git Guard:
+  1. Delete the guard script: rm ~/.git-guard/git-pull-guard.mjs
+  2. Recreate it following the installation guide.
+```
+
+This gives you a clear path to reset the tool if it ever breaks.
+
 ## Design notes
 
 This tool intentionally guards only `git pull`, because that is where the operational risk was identified in the deployment workflow. Git aliases and wrapper techniques can be used to customize command behavior, but wrapping the `git` command at shell level gives tighter control over accidental pull behavior while still preserving the standard Git interface for everyday use.
@@ -350,23 +307,9 @@ If this tool is no longer needed, it can be removed cleanly because it only chan
 
 ### 1. Remove the shell wrapper
 
-On macOS, open `~/.zshrc` and delete the `git()` wrapper plus the `GIT_GUARD_ALLOWED_BRANCH` export if it was added only for this tool. On Ubuntu or other Linux servers, do the same in `~/.bashrc`, which is the interactive Bash startup file.
+On macOS, open `~/.zshrc` and delete the `git()` wrapper plus the `GIT_GUARD_ALLOWED_BRANCH` export if it was added only for this tool. On Ubuntu or other Linux servers, do the same in `~/.bashrc`.
 
-Example lines to remove:
-
-```bash
-export GIT_GUARD_ALLOWED_BRANCH=staging
-
-git() {
-  if [ "$1" = "pull" ]; then
-    shift
-    node ~/.git-guard/git-pull-guard.mjs "$@"
-    return $?
-  fi
-
-  command git "$@"
-}
-```
+You can reference the `bashrc.env` and `zshrc.env` files in this project to see exactly which lines to remove.
 
 ### 2. Reload the shell
 
