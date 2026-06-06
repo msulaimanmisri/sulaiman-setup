@@ -11,15 +11,20 @@ This project was designed for a branch-controlled deployment flow where code is 
 - [Problem it solves](#problem-it-solves)
 - [How it works](#how-it-works)
 - [Recommended use case](#recommended-use-case)
+- [Installation](#installation)
+  - [NPM (recommended)](#npm-recommended)
+  - [Manual setup](#manual-setup)
 - [Project structure](#project-structure)
 - [Requirements](#requirements)
-- [Installation](#installation)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [How to verify setup](#how-to-verify-setup)
+- [Upgrade](#upgrade)
 - [Troubleshooting](#troubleshooting)
 - [Design notes](#design-notes)
 - [Revert or uninstall](#revert-or-uninstall)
+  - [NPM users](#npm-users)
+  - [Manual users](#manual-users)
 - [Future improvements](#future-improvements)
 
 ## SUPER IMPORTANT!
@@ -69,50 +74,58 @@ A typical example:
 
 This is exactly the step where `git-guard` helps by blocking accidental pulls from `release` or `production` on the wrong environment.
 
-## Project structure
-
-```text
-git-guard/
-├── bashrc.env              # Shell wrapper config for Ubuntu / Linux servers
-├── zshrc.env               # Shell wrapper config for macOS
-├── git-pull-guard.mjs      # The guard script (Node.js)
-└── readme.md
-```
-
-On macOS, the shell wrapper normally belongs in `~/.zshrc` because zsh is the default shell on modern macOS versions. On Ubuntu or most LAMP/LEMP servers, the wrapper normally belongs in `~/.bashrc`, which is the interactive Bash startup file.
-
-## Requirements
-
-The Node-based version of this guard requires:
-
-- Git
-- Node.js
-- A shell that supports shell functions, such as zsh or bash.
-
 ## Installation
 
-### 1. Create the guard directory
+### NPM (recommended)
+
+```bash
+npm install -g git-guard
+```
+
+That's it. The postinstall script automatically detects your shell (zsh or bash) and injects the wrapper into the correct rc file.
+
+After the install completes, reload your shell:
+
+```bash
+# macOS / zsh
+exec zsh
+
+# Ubuntu / bash
+source ~/.bashrc
+```
+
+> **Custom branch?** Set `GIT_GUARD_ALLOWED_BRANCH` *before* installing to skip the default `staging`:
+> ```bash
+> export GIT_GUARD_ALLOWED_BRANCH=production
+> npm install -g git-guard
+> ```
+>
+> Or add the export to your rc file **above** the sentinel block (see [Configuration](#configuration)).
+
+### Manual setup
+
+If you prefer the copy-paste approach, grab the files from the `manual/` directory.
+
+#### 1. Create the guard directory
 
 ```bash
 mkdir -p ~/.git-guard
 ```
 
-### 2. Create the guard script
+#### 2. Create the guard script
 
-Copy `git-pull-guard.mjs` from this repository into `~/.git-guard/git-pull-guard.mjs`. Open the file if you want to review or modify the code before copying:
+Copy `git-pull-guard.mjs` from `manual/macos/` or `manual/ubuntu/` into `~/.git-guard/git-pull-guard.mjs`.
 
 ```bash
-open git-pull-guard.mjs
+cp manual/macos/git-pull-guard.mjs ~/.git-guard/git-pull-guard.mjs
 ```
 
-### 3. Add the shell wrapper
+#### 3. Add the shell wrapper
 
-#### macOS — copy the codes from `zshrc.env` into your `~/.zshrc`
-
-Open `zshrc.env` from this project, copy all the code inside it, and paste it into your `~/.zshrc`:
+##### macOS — copy the codes from `manual/macos/zshrc.env` into your `~/.zshrc`
 
 ```bash
-open zshrc.env
+cat manual/macos/zshrc.env >> ~/.zshrc
 ```
 
 After pasting, reload the shell:
@@ -121,12 +134,10 @@ After pasting, reload the shell:
 exec zsh
 ```
 
-#### Ubuntu / Linux server — copy the codes from `bashrc.env` into your `~/.bashrc`
-
-Open `bashrc.env` from this project, copy all the code inside it, and paste it into your `~/.bashrc`:
+##### Ubuntu / Linux server — copy the codes from `manual/ubuntu/bashrc.env` into your `~/.bashrc`
 
 ```bash
-open bashrc.env
+cat manual/ubuntu/bashrc.env >> ~/.bashrc
 ```
 
 After pasting, reload the shell:
@@ -134,6 +145,46 @@ After pasting, reload the shell:
 ```bash
 source ~/.bashrc
 ```
+
+## Project structure
+
+```text
+git-guard/
+├── npm/                        # NPM package (recommended)
+│   ├── cli.js                  # The guard script (Node.js)
+│   ├── package.json
+│   ├── scripts/
+│   │   ├── postinstall.sh      # Auto-injects shell wrapper
+│   │   └── preuninstall.sh     # Removes shell wrapper on uninstall
+│   └── wrappers/
+│       ├── zsh.env             # Shell wrapper for macOS
+│       └── bash.env            # Shell wrapper for Ubuntu / Linux
+├── manual/                     # Copy-paste setup
+│   ├── macos/
+│   │   ├── zshrc.env
+│   │   └── git-pull-guard.mjs
+│   └── ubuntu/
+│       ├── bashrc.env
+│       └── git-pull-guard.mjs
+├── readme.md
+├── image.png
+└── image-1.png
+```
+
+Two installation methods are provided:
+
+| Method | Best for |
+|--------|----------|
+| NPM | Quick install, automatic upgrades, clean uninstall |
+| Manual | Users who prefer full control or can't use npm globally |
+
+## Requirements
+
+The Node-based version of this guard requires:
+
+- Git
+- Node.js
+- A shell that supports shell functions, such as zsh or bash.
 
 ## Usage
 
@@ -199,6 +250,10 @@ The environment variable below controls which branch is allowed on the current m
 export GIT_GUARD_ALLOWED_BRANCH=staging
 ```
 
+**NPM users:** The wrapper block in your rc file includes a default export. To change it, set the variable **outside** the sentinel block (before `# >>> Git-guard by Sulaiman Misri >>>`). During upgrades, the postinstall script preserves your custom value.
+
+**Manual users:** Edit the export line inside your rc file directly.
+
 Examples:
 
 | Environment | Allowed branch |
@@ -225,23 +280,48 @@ To inspect the loaded function in zsh:
 typeset -f git
 ```
 
-To inspect the first lines of the guard file:
+**NPM users** — check the installed version:
 
 ```bash
-head -n 5 ~/.git-guard/git-pull-guard.mjs
+git-guard --version    # prints the package version
 ```
 
-To test the guard script directly with Node:
+To test the guard script directly:
 
 ```bash
+# NPM users
+echo 'staging' | git-guard origin staging
+
+# Manual users
 node ~/.git-guard/git-pull-guard.mjs origin staging
 ```
+
+## Upgrade
+
+### NPM users
+
+```bash
+npm update -g git-guard
+```
+
+The postinstall script runs automatically — it removes the old wrapper block and injects the latest one. Your custom `GIT_GUARD_ALLOWED_BRANCH` is preserved. After upgrading, reload your shell:
+
+```bash
+exec zsh          # macOS
+source ~/.bashrc  # Ubuntu
+```
+
+### Manual users
+
+Pull the latest `manual/` files from the repository, then re-copy `git-pull-guard.mjs` and re-paste the wrapper into your rc file. Reload your shell afterwards.
 
 ## Troubleshooting
 
 ### `import: command not found`
 
-This means the `.mjs` file is being executed by the shell instead of Node. The fix is to make sure the shell wrapper actually calls `node ~/.git-guard/git-pull-guard.mjs "$@"`, and that the current shell session has been reloaded properly.
+**Manual users:** This means the `.mjs` file is being executed by the shell instead of Node. The fix is to make sure the shell wrapper actually calls `node ~/.git-guard/git-pull-guard.mjs "$@"`, and that the current shell session has been reloaded properly.
+
+**NPM users:** This should not happen since `git-guard` is installed as a global binary with a Node shebang. If you see this, reinstall with `npm install -g git-guard`.
 
 ### Wrapper changes do not take effect
 
@@ -290,8 +370,8 @@ A top-level `try/catch` wraps the entire script to catch anything unexpected. If
 <error message>
 
 If this error persists, try reinstalling Git Guard:
-  1. Delete the guard script: rm ~/.git-guard/git-pull-guard.mjs
-  2. Recreate it following the installation guide.
+  1. Uninstall package: npm uninstall -g git-guard
+  2. Reinstall it: npm install -g git-guard
 ```
 
 This gives you a clear path to reset the tool if it ever breaks.
@@ -309,15 +389,41 @@ The implementation is intentionally opinionated:
 
 ## Revert or uninstall
 
+### NPM users
+
+```bash
+npm uninstall -g git-guard
+```
+
+The preuninstall script automatically removes the wrapper block from your rc file.
+
+After uninstall, reload your shell:
+
+```bash
+# macOS / zsh
+exec zsh
+
+# Ubuntu / bash
+source ~/.bashrc
+```
+
+Verify:
+
+```bash
+type git     # should show the system git path, not a shell function
+```
+
+### Manual users
+
 If this tool is no longer needed, it can be removed cleanly because it only changes two things: a shell wrapper in the user's shell startup file and the guard script stored in the home directory. The wrapper works by overriding `git` at shell level, so uninstalling it simply means removing that function and reloading the shell.
 
-### 1. Remove the shell wrapper
+#### 1. Remove the shell wrapper
 
 On macOS, open `~/.zshrc` and delete the `git()` wrapper plus the `GIT_GUARD_ALLOWED_BRANCH` export if it was added only for this tool. On Ubuntu or other Linux servers, do the same in `~/.bashrc`.
 
-You can reference the `bashrc.env` and `zshrc.env` files in this project to see exactly which lines to remove.
+You can reference the `manual/macos/zshrc.env` and `manual/ubuntu/bashrc.env` files in this project to see exactly which lines to remove.
 
-### 2. Reload the shell
+#### 2. Reload the shell
 
 After removing the wrapper, reload the current shell so the original Git command is used again. On zsh, restarting the shell with `exec zsh` is a reliable way to refresh the active session, while Bash users can reload their startup file with `source ~/.bashrc`.
 
@@ -329,7 +435,7 @@ exec zsh
 source ~/.bashrc
 ```
 
-### 3. Delete the guard script
+#### 3. Delete the guard script
 
 Once the wrapper is gone, the script file itself can be removed from the home directory because it is no longer referenced by the shell.
 
@@ -338,7 +444,7 @@ rm -f ~/.git-guard/git-pull-guard.mjs
 rmdir ~/.git-guard 2>/dev/null || true
 ```
 
-### 4. Verify Git is back to normal
+#### 4. Verify Git is back to normal
 
 Run the command below to confirm that `git` is no longer a shell function. If uninstall is complete, the output should point back to the normal Git command instead of a shell wrapper.
 
