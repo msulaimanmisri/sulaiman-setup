@@ -47,7 +47,7 @@ When such a case is detected, the command is blocked and the user is given an ex
 
 ## How it works
 
-`git-guard` does not change Git itself. Instead, it wraps the `git` command at the shell level using a shell function, which is a standard way to override a command and still fall back to the original binary through `command git`.
+`git-guard` does not change Git itself. Instead, it wraps the `git` command at the shell level using a shell function (bash/zsh) or PowerShell function (Windows), which is a standard way to override a command and still fall back to the original binary.
 
 The wrapper only intercepts `git pull`. All other Git commands such as `git status`, `git log`, and `git branch` are passed directly to the real Git binary unchanged.
 
@@ -82,7 +82,13 @@ This is exactly the step where `git-guard` helps by blocking accidental pulls fr
 npm install -g git-guard
 ```
 
-That's it. The postinstall script automatically detects your shell (zsh or bash) and injects the wrapper into the correct rc file.
+That's it. The postinstall script automatically detects your OS and shell, then injects the wrapper into the correct profile file:
+
+| OS | Shell | Profile file |
+|----|-------|-------------|
+| macOS | zsh | `~/.zshrc` |
+| Linux | bash | `~/.bashrc` |
+| Windows | PowerShell | `$PROFILE` (`Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`) |
 
 After the install completes, reload your shell:
 
@@ -92,15 +98,26 @@ exec zsh
 
 # Ubuntu / bash
 source ~/.bashrc
+
+# Windows / PowerShell
+. $PROFILE
 ```
 
 > **Custom branch?** Set `GIT_GUARD_ALLOWED_BRANCH` *before* installing to skip the default `staging`:
+>
+> **macOS / Linux:**
 > ```bash
 > export GIT_GUARD_ALLOWED_BRANCH=production
 > npm install -g git-guard
 > ```
 >
-> Or add the export to your rc file **above** the sentinel block (see [Configuration](#configuration)).
+> **Windows (PowerShell):**
+> ```powershell
+> $env:GIT_GUARD_ALLOWED_BRANCH = "production"
+> npm install -g git-guard
+> ```
+>
+> Or add the variable to your profile file **above** the sentinel block (see [Configuration](#configuration)).
 
 ### Manual setup
 
@@ -151,15 +168,16 @@ source ~/.bashrc
 ```text
 git-guard/
 ├── npm/                        # NPM package (recommended)
-│   ├── cli.js                  # The guard script (Node.js)
+│   ├── cli.js                  # The guard script (Node.js / ESM)
 │   ├── package.json
 │   ├── scripts/
-│   │   ├── postinstall.sh      # Auto-injects shell wrapper
-│   │   └── preuninstall.sh     # Removes shell wrapper on uninstall
+│   │   ├── postinstall.js      # Cross-platform auto-inject (Node.js)
+│   │   └── preuninstall.js     # Cross-platform auto-remove (Node.js)
 │   └── wrappers/
-│       ├── zsh.env             # Shell wrapper for macOS
-│       └── bash.env            # Shell wrapper for Ubuntu / Linux
-├── manual/                     # Copy-paste setup
+│       ├── zsh.env             # Shell wrapper for macOS (zsh)
+│       ├── bash.env            # Shell wrapper for Linux (bash)
+│       └── powershell.ps1      # PowerShell wrapper for Windows
+├── manual/                     # Copy-paste setup (macOS / Linux only)
 │   ├── macos/
 │   │   ├── zshrc.env
 │   │   └── git-pull-guard.mjs
@@ -175,16 +193,17 @@ Two installation methods are provided:
 
 | Method | Best for |
 |--------|----------|
-| NPM | Quick install, automatic upgrades, clean uninstall |
-| Manual | Users who prefer full control or can't use npm globally |
+| NPM | Windows, macOS, Linux — quick install, automatic upgrades, clean uninstall |
+| Manual | macOS / Linux users who prefer full control or can't use npm globally |
 
 ## Requirements
 
-The Node-based version of this guard requires:
-
-- Git
-- Node.js
-- A shell that supports shell functions, such as zsh or bash.
+- **Git** (any recent version)
+- **Node.js** >= 18
+- A supported shell:
+  - macOS: **zsh** (or bash)
+  - Linux: **bash** (or zsh)
+  - Windows: **PowerShell** (version 5.1 or higher)
 
 ## Usage
 
@@ -246,11 +265,17 @@ This allows an intentional override while logging exactly what was bypassed.
 
 The environment variable below controls which branch is allowed on the current machine:
 
+**macOS / Linux (bash/zsh):**
 ```bash
 export GIT_GUARD_ALLOWED_BRANCH=staging
 ```
 
-**NPM users:** The wrapper block in your rc file includes a default export. To change it, set the variable **outside** the sentinel block (before `# >>> Git-guard by Sulaiman Misri >>>`). During upgrades, the postinstall script preserves your custom value.
+**Windows (PowerShell):**
+```powershell
+$env:GIT_GUARD_ALLOWED_BRANCH = "staging"
+```
+
+**NPM users:** The wrapper block in your profile file includes a default value. To change it, set the variable **outside** the sentinel block (before `# >>> Git-guard by Sulaiman Misri >>>`). During upgrades, the postinstall script preserves your custom value.
 
 **Manual users:** Edit the export line inside your rc file directly.
 
@@ -272,12 +297,29 @@ Check whether the wrapper is active:
 type git
 ```
 
-The output should indicate that `git` is a shell function when the wrapper is loaded.
+**macOS / Linux:** The output should indicate that `git` is a shell function.
 
-To inspect the loaded function in zsh:
+**Windows (PowerShell):** Run:
+```powershell
+Get-Command git
+```
+If it shows `Function` as the `CommandType`, the wrapper is loaded.
 
+To inspect the loaded function:
+
+**zsh:**
 ```bash
 typeset -f git
+```
+
+**bash:**
+```bash
+declare -f git
+```
+
+**PowerShell:**
+```powershell
+Get-Content Function:\git
 ```
 
 **NPM users** — check the installed version:
@@ -307,8 +349,14 @@ npm update -g git-guard
 The postinstall script runs automatically — it removes the old wrapper block and injects the latest one. Your custom `GIT_GUARD_ALLOWED_BRANCH` is preserved. After upgrading, reload your shell:
 
 ```bash
-exec zsh          # macOS
-source ~/.bashrc  # Ubuntu
+# macOS
+exec zsh
+
+# Ubuntu
+source ~/.bashrc
+
+# Windows
+. $PROFILE
 ```
 
 ### Manual users
@@ -325,7 +373,32 @@ Pull the latest `manual/` files from the repository, then re-copy `git-pull-guar
 
 ### Wrapper changes do not take effect
 
-The currently running shell may still be using the old function definition. Reloading the shell with `exec zsh` on macOS or `source ~/.bashrc` on Linux updates the active session.
+The currently running shell may still be using the old function definition. Reload your shell:
+
+```bash
+# macOS
+exec zsh
+
+# Ubuntu
+source ~/.bashrc
+
+# Windows
+. $PROFILE
+```
+
+### PowerShell: running scripts is disabled
+
+Windows restricts PowerShell script execution by default. If you see `File cannot be loaded because running scripts is disabled`, allow local scripts:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Then reload your profile:
+
+```powershell
+. $PROFILE
+```
 
 ### `git` is not using the wrapper
 
@@ -387,6 +460,8 @@ The implementation is intentionally opinionated:
 - Explicit confirmation for unsafe actions.
 - Minimal interference with standard Git commands.
 
+The install/uninstall scripts are written in **Node.js** (not bash), making them work identically across Windows, macOS, and Linux without any OS-specific dependencies like `sed` or `grep`.
+
 ## Revert or uninstall
 
 ### NPM users
@@ -395,7 +470,7 @@ The implementation is intentionally opinionated:
 npm uninstall -g git-guard
 ```
 
-The preuninstall script automatically removes the wrapper block from your rc file.
+The preuninstall script automatically removes the wrapper block from your profile file.
 
 After uninstall, reload your shell:
 
@@ -405,6 +480,9 @@ exec zsh
 
 # Ubuntu / bash
 source ~/.bashrc
+
+# Windows / PowerShell
+. $PROFILE
 ```
 
 Verify:
@@ -463,3 +541,4 @@ Possible next steps:
 - Add colored terminal output.
 - Add per-repository configuration.
 - Add logging for blocked commands.
+- Add a Windows manual setup option in `manual/windows/`.

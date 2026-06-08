@@ -2,17 +2,23 @@
   "name": "git-guard",
   "version": "1.0.0",
   "description": "Lightweight Git safety guard — blocks unsafe git pull commands",
+  "type": "module",
   "bin": {
     "git-guard": "./cli.js"
   },
   "scripts": {
-    "postinstall": "bash scripts/postinstall.sh",
-    "preuninstall": "bash scripts/preuninstall.sh"
+    "postinstall": "node scripts/postinstall.js",
+    "preuninstall": "node scripts/preuninstall.js"
   },
   "files": [
     "cli.js",
     "scripts/",
     "wrappers/"
+  ],
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
   ],
   "license": "MIT",
   "engines": {
@@ -28,7 +34,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/msulaimanmisri/git-guard"
+    "url": "https://github.com/msulaimanmisri/sulaiman-setup/tree/main/git-guard"
   },
   "author": "Sulaiman Misri <saya@sulaimanmisri.com>"
 }
