@@ -1,0 +1,149 @@
+#!/bin/bash
+
+# --- by Muhamad Sulaiman ---
+# --- 5 July 2026 (Sunday) ---
+
+# ---- Strict mode ----
+set -euo pipefail
+export TZ="Asia/Kuala_Lumpur"
+
+APP_PATH="$location"
+BRANCH="$branch_target"
+
+# ---- Logging function (screen only, no file) ----
+log() {
+    echo "$1"
+}
+
+# ---- Trap: runs automatically if ANY command fails ----
+on_error() {
+    local exit_code=$?
+    local line_no=$1
+    log ""
+    log "=================================================="
+    log " DEPLOY FAILED at line $line_no (exit code $exit_code)"
+    log " Time: $(date "+%d %b %Y, %I:%M:%S %p")"
+    log "=================================================="
+    log " "
+    
+    log "Sulaiman said : Check the log above to see the last successful step."
+    exit "$exit_code"
+}
+trap 'on_error $LINENO' ERR
+
+# ---- Function: sanity checks before touching anything ----
+run_preflight_checks() {
+    log "==> Verifying app path exists"
+    if [ ! -d "$APP_PATH" ]; then
+        log "ERROR: App path does not exist: $APP_PATH"
+        exit 1
+    fi
+
+    cd "$APP_PATH"
+
+    if [ ! -d ".git" ]; then
+        log "ERROR: $APP_PATH is not a git repository. Aborting."
+        exit 1
+    fi
+
+    if [ ! -f "artisan" ]; then
+        log "ERROR: artisan file not found. Are you in the right directory?"
+        exit 1
+    fi
+
+    log "==> Current branch:"
+    git branch
+
+    log " "
+
+    log "==> Checking for uncommitted local changes"
+    # if [ -n "$(git status --porcelain)" ]; then
+    #     log "ERROR: There are uncommitted local changes on the server."
+    #     log "Refusing to pull — resolve this manually first:"
+    #     git status --short
+    #     exit 1
+    # fi
+
+    # log " "
+}
+
+# ---- Function: fix storage permissions ----
+fix_storage_permissions() {
+    log "==> Fixing storage permissions"
+
+    if [ -d "storage" ]; then
+        sudo chmod -R 777 storage
+    else
+        log "ERROR: storage/ directory not found. Aborting."
+        exit 1
+    fi
+
+    log " "
+}
+
+# ---- Function: pull latest code ----
+pull_latest_code() {
+    log "==> Clearing cached config/routes/views (pre-pull)"
+    php artisan optimize:clear
+
+    log "==> Pulling latest code ($BRANCH)"
+    git pull origin "$BRANCH"
+
+    log " "
+}
+
+# ---- Function: install PHP dependencies ----
+install_composer_deps() {
+    log "==> Installing PHP dependencies"
+    composer install --optimize-autoloader --no-interaction
+    log " "
+}
+
+# ---- Function: npm install + build ----
+build_frontend_assets() {
+    log "==> Installing npm dependencies"
+    npm install
+
+    log "==> Building frontend assets"
+    npm run production-reskin
+
+    log " "
+}
+
+# ---- Function: run migrations ----
+run_migrations() {
+    log "==> Running migrations"
+    php artisan migrate --force
+    log " "
+}
+
+# ---- Function: rebuild optimized cache ----
+rebuild_cache() {
+    log "==> Rebuilding optimized cache"
+    php artisan optimize:clear
+    php artisan optimize
+    log " "
+}
+
+# =========================================================
+# Main deploy sequence
+# =========================================================
+
+log "=================================================="
+log " Deploying [$BRANCH]: Corporate Website"
+log " Time: $(date)"
+log "=================================================="
+
+run_preflight_checks
+fix_storage_permissions
+pull_latest_code
+install_composer_deps
+build_frontend_assets
+fix_storage_permissions
+run_migrations
+rebuild_cache
+
+log "=================================================="
+log " Success deploying branch: $BRANCH."
+log " Time: $(date "+%d %b %Y, %I:%M:%S %p")"
+log "=================================================="
