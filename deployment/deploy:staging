@@ -1,4 +1,5 @@
 #!/bin/bash
+# You can store this script at : /usr/local/bin/deploy:staging-main (example)
 
 # --- by Muhamad Sulaiman ---
 # --- 5 July 2026 (Sunday) ---
