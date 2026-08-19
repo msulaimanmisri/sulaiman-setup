@@ -2,7 +2,7 @@
 name: show-me-laravel
 description: Help the user understand whatever they point at in a Laravel codebase — a route, controller, Eloquent model, Livewire component, Blade view, Alpine.js behavior, job, event, or config — using concise visuals instead of walls of prose. Use when the user asks "explain this", "show me how X works", "what does this do", or invokes /show-me-laravel while pointing at Laravel, Livewire, Alpine.js, or Blade code.
 author: Muhamad Sulaiman <saya@sulaimanmisri.com>
-version: 1.1
+version: 1.1.2
 licence: MIT
 ---
 
@@ -10,9 +10,11 @@ licence: MIT
 
 1. Help the user understand the current topic of conversation visually. Skip the preamble and keep prose brief. Pick the smallest view that makes the key point clear.
    
-2. Every time you want to explain, create the `html` file. Use TailwindCSS CDN (version 4.x). No inline or internal or external css file. Use only Tailwindcss utility classes.
-   
-3. When the user points at something, first orient yourself with cheap, fast reads before explaining:
+2. Every time you want to explain, create the `html` file. Use TailwindCSS CDN (<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>). No inline, internal, or external CSS files. Use only Tailwind CSS utility classes.
+
+3. If you need to explain with some interactivity, use Alpine.JS CDN (<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>) only.
+
+4. When the user points at something, first orient yourself with cheap, fast reads before explaining:
 
 - `php artisan route:list --path=...` — find the route → controller/action wiring
 - `php artisan model:show App\\Models\\User` — inspect fillable, casts, relations
