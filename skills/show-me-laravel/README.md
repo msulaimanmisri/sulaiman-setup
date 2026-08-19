@@ -42,10 +42,22 @@ Instead of 500 words of prose, we get a 10-line call tree or a Mermaid sequence 
 npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent opencode
 ```
 
+Installed into:
+
+```text
+.opencode/skills/show-me-laravel/
+```
+
 ### GitHub Copilot (Copilot CLI)
 
 ```bash
 npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent copilot
+```
+
+Installed into:
+
+```text
+.github/skills/show-me-laravel/
 ```
 
 ### CommandCode.ai
@@ -54,16 +66,36 @@ npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent cop
 npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent commandcode
 ```
 
+Installed into:
+
+```text
+.commandcode/skills/show-me-laravel/
+```
+
 ### Claude Code
 
 ```bash
 npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent claude-code
 ```
 
-### Install for All Agents at Once
+Installed into:
+
+```text
+.claude/skills/show-me-laravel/
+```
+
+### Install on Agent
+
+Use this option when you want the skill installed in the shared agent directory instead of a provider-specific directory.
 
 ```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent opencode --agent copilot --agent commandcode --agent claude-code
+npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent universal
+```
+
+Installed into:
+
+```text
+.agents/skills/show-me-laravel/
 ```
 
 ### Verify Installation
@@ -73,10 +105,11 @@ npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent ope
 npx skills list
 
 # Or check the directory directly
-ls ~/.config/opencode/skills/show-me-laravel/
-ls ~/.github-copilot/skills/show-me-laravel/
-ls ~/.config/commandcode/skills/show-me-laravel/
-ls ~/.claude/skills/show-me-laravel/
+ls .opencode/skills/show-me-laravel/
+ls .github/skills/show-me-laravel/
+ls .commandcode/skills/show-me-laravel/
+ls .claude/skills/show-me-laravel/
+ls .agents/skills/show-me-laravel/
 ```
 
 ## Usage
@@ -98,7 +131,7 @@ Instead of:
 
 You get:
 
-```
+```text
 POST /posts
   HandleController@store
       StorePostRequest::validated
