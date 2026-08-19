@@ -36,60 +36,10 @@ Instead of 500 words of prose, we get a 10-line call tree or a Mermaid sequence 
 
 ## Installation
 
-### OpenCode
-
-```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent opencode
-```
-
-Installed into:
-
-```text
-.opencode/skills/show-me-laravel/
-```
-
-### GitHub Copilot (Copilot CLI)
-
-```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent copilot
-```
-
-Installed into:
-
-```text
-.github/skills/show-me-laravel/
-```
-
-### CommandCode.ai
-
-```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent commandcode
-```
-
-Installed into:
-
-```text
-.commandcode/skills/show-me-laravel/
-```
-
-### Claude Code
-
-```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent claude-code
-```
-
-Installed into:
-
-```text
-.claude/skills/show-me-laravel/
-```
-
-### Install on Agent
-
 Use this option when you want the skill installed in the shared agent directory instead of a provider-specific directory.
 
 ```bash
-npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel --agent universal
+npx skills add msulaimanmisri/sulaiman-setup --skill show-me-laravel
 ```
 
 Installed into:
@@ -105,10 +55,6 @@ Installed into:
 npx skills list
 
 # Or check the directory directly
-ls .opencode/skills/show-me-laravel/
-ls .github/skills/show-me-laravel/
-ls .commandcode/skills/show-me-laravel/
-ls .claude/skills/show-me-laravel/
 ls .agents/skills/show-me-laravel/
 ```
 
